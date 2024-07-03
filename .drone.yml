@@ -14,7 +14,8 @@ steps:
   commands:
   # wait for the docker service
   - n=0; while [ "$n" -lt 60 ] && [ ! "$(docker stats --no-stream)" ]; do n=$(( n + 1 )); sleep 1; done
-  - make build standalone_firefox
+  - apk add make
+  - make standalone_firefox
   environment:
     VERSION: local
   when:
