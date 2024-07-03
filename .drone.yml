@@ -1,0 +1,44 @@
+---
+kind: pipeline
+name: default
+type: kubernetes
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build_standalone_firefox
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+  # wait for the docker service
+  - n=0; while [ "$n" -lt 60 ] && [ ! "$(docker stats --no-stream)" ]; do n=$(( n + 1 )); sleep 1; done
+  - make build standalone_firefox
+  environment:
+    VERSION: local
+  when:
+    event:
+    - push
+
+- name: tag_and_push_to_quay
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+  - docker login -u="$${REGISTRY_USER}" -p=$${DOCKER_PASSWORD} $${REGISTRY}
+  - docker tag $${NAME}:$${DRONE_COMMIT_SHA} $${REGISTRY}/$${REGISTRY_AUTHOR}/$${NAME}:$${DRONE_TAG}
+  - docker push $${REGISTRY}/$${REGISTRY_AUTHOR}/$${NAME}:$${DRONE_TAG}
+  environment:
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+    NAME: standalone-firefox
+    REGISTRY: quay.io
+    REGISTRY_AUTHOR: ukhomeofficedigital
+    REGISTRY_USER: ukhomeofficedigital+standalone_firefox
+  when:
+    event:
+    - tag
+
+services:
+- name: docker
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
